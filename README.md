@@ -46,16 +46,21 @@ graph LR
 
 ## Getting Started
 
-Build the generator, and render the example registry into zone files. The generator reads `registry/` of the directory mounted at `/mnt`, and writes `zonefiles/` next to it:
+Pull the generator, and get the example registry from this repository:
 
 ```console
+$ podman pull ghcr.io/t13a/zonegen
 $ git clone https://github.com/t13a/zonegen.git
-$ cd zonegen
-$ podman build -t zonegen src
-$ podman run --rm --userns=keep-id -v ./example:/mnt zonegen
+$ cd zonegen/example
 ```
 
-`example/zonefiles/` then has a directory for each server of the example, `ns1` and `edge1`, with a file for each zone, such as `home.arpa.zone` and `1.168.192.in-addr.arpa.zone`. Point the DNS server at those files.
+Render the registry into zone files. The generator reads `registry/` of the directory mounted at `/mnt`, and writes `zonefiles/` next to it:
+
+```console
+$ podman run --rm --userns=keep-id -v .:/mnt ghcr.io/t13a/zonegen
+```
+
+`zonefiles/` then has a directory for each server of the example, `ns1` and `edge1`, with a file for each zone, such as `home.arpa.zone` and `1.168.192.in-addr.arpa.zone`. Point the DNS server at those files.
 
 With Docker, give `--user "$(id -u):$(id -g)"` instead of `--userns=keep-id`.
 
@@ -128,5 +133,7 @@ local zones = zonegen.overlay(i.zones, {
 ### Generator
 
 The generator renders the registry in `registry/` of the directory mounted at `/mnt` into `zonefiles/` next to it, which it creates if it is missing. It also updates `registry/index.libsonnet`. It validates the zone files that differ from the last render with `named-checkzone`, and replaces `zonefiles/` only when they are valid.
+
+Each release publishes the image under its version, such as `0.1.0` for the tag `v0.1.0`, and as `latest`.
 
 A zone file has its records sorted by name, with the origin first, so that the SOA record comes first, and the NS records next. The names of a reverse zone are sorted by their numbers.
