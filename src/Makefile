@@ -9,6 +9,7 @@ JSONNET = jsonnet
 NAMED_CHECKZONE = named-checkzone
 REGISTRY_DIR = registry
 ZONEFILES_DIR = zonefiles
+CODE = render(registry)
 
 $(foreach v,REGISTRY_DIR ZONEFILES_DIR,$(if $(strip $($(v))),,$(error $(v) is empty)))
 
@@ -17,7 +18,7 @@ TMP_DIR := $(ZONEFILES_DIR)/.tmp
 # The servers import zonegen.libsonnet, which lives next to this Makefile.
 JPATH := -J $(CURDIR)
 
-.PHONY: gen $(INDEX)
+.PHONY: gen print $(INDEX)
 gen: $(INDEX)
 	rm -rf $(TMP_DIR)
 	$(JSONNET) $(JPATH) -S -c -m $(TMP_DIR) --tla-code-file registry=$(INDEX) main.jsonnet > /dev/null
@@ -28,6 +29,13 @@ gen: $(INDEX)
 	rm -rf $(ZONEFILES_DIR)/*
 	mv $(TMP_DIR)/* $(ZONEFILES_DIR)/
 	rmdir $(TMP_DIR)
+
+# CODE reaches jsonnet through the environment, so neither make nor the shell changes it.
+unexport CODE
+print: override export CODE := $(value CODE)
+print: $(INDEX)
+	@$(JSONNET) $(JPATH) --ext-code-file registry=$(INDEX) --ext-code-file render=main.jsonnet \
+	  -e "local registry = std.extVar('registry'), render = std.extVar('render'), zonegen = import 'zonegen.libsonnet'; $$CODE"
 
 # A layer is a JSON or Jsonnet file, and the layers of a directory are merged in the order of their names.
 layers = $$(for f in $(1)/*; do case $$f in *.json|*.libsonnet) echo -n "import '$${f\#$(REGISTRY_DIR)/}', ";; esac; done)

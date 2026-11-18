@@ -134,6 +134,17 @@ local zones = zonegen.overlay(i.zones, {
 
 The generator renders the registry in `registry/` of the directory mounted at `/mnt` into `zonefiles/` next to it, which it creates if it is missing. It also updates `registry/index.libsonnet`. It validates the zone files that differ from the last render with `named-checkzone`, and replaces `zonefiles/` only when they are valid.
 
+`print` evaluates `CODE`, Jsonnet code, and prints its value as JSON. It needs only the registry, and it neither validates nor writes files, which suits trying out a change. In `CODE`, `registry` is the registry, `render` the function that turns it into the zone files, and `zonegen` the functions of `zonegen.libsonnet`. `CODE` is `render(registry)` by default, which prints those files as the generator would write them.
+
+```console
+$ podman run --rm --userns=keep-id -v .:/mnt ghcr.io/t13a/zonegen print
+$ podman run --rm --userns=keep-id -v .:/mnt ghcr.io/t13a/zonegen print CODE='zonegen.merge(registry.zones["home.arpa"])'
+$ podman run --rm --userns=keep-id -v .:/mnt ghcr.io/t13a/zonegen print CODE='zonegen.reverse(registry.zones)'
+$ podman run --rm --userns=keep-id -v .:/mnt ghcr.io/t13a/zonegen print CODE='render(registry)["ns1/home.arpa.zone"]' | jq -r .
+```
+
+Hidden fields are not printed, which is why `registry` shows only `servers`, but `CODE` can name one, such as `registry.zones` or `registry.defaults`. A file prints as a JSON string, which `jq -r .` turns back into the file, as in the last line.
+
 Each release publishes the image under its version, such as `0.1.0` for the tag `v0.1.0`, and as `latest`.
 
 A zone file has its records sorted by name, with the origin first, so that the SOA record comes first, and the NS records next. The names of a reverse zone are sorted by their numbers.
