@@ -26,10 +26,9 @@ local check(name, server) =
   if std.length(unknown) > 0 then error name + ': unknown field ' + std.join(', ', unknown) else true;
 
 function(registry)
-  local defaults = if std.objectHasAll(registry, 'defaults') then registry.defaults else [];
   local servers = registry.servers;
   {
-    [s + '/' + o + '.zone']: zonefile(o, zonegen.merge(defaults + servers[s].zones[o]))
+    [s + '/' + o + '.zone']: zonefile(o, zonegen.merge(servers[s].zones[o]))
     for s in std.objectFields(servers) if check(s, servers[s])
     for o in std.objectFields(servers[s].zones) if servers[s].zones[o] != null
   }

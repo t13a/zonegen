@@ -22,10 +22,11 @@ The registry is written in JSON or Jsonnet, and zonegen does not read the data o
 ```mermaid
 graph LR
   subgraph registry ["Registry (JSON and Jsonnet)"]
-    defaults["Defaults"]
     zone["Zones"]
+    template["Templates"]
     server["Servers"]
     server --> zone
+    server --> template
   end
   generator["Generator (container image)"]
   zonefiles["Zone files (a directory per server)"]
@@ -36,8 +37,8 @@ graph LR
 - **Registry:** the directory that defines all zones and servers.
 - **Layer:** a JSON or Jsonnet file of records. The layers of a directory are merged in the order of their file names, so a later layer adds records to the earlier ones, replaces them, or removes them.
 - **Zone:** a directory in `zones/`, named after the origin of the zone, such as `zones/home.arpa/`, with the layers of the zone.
-- **Defaults:** the layers in `defaults/`, which lie under every zone, including the reverse zones. They suit what all zones share, such as the SOA and NS records and `$ttl`.
-- **Server:** a file in `servers/` that says which zones a DNS server has, with its overlays and its reverse zones.
+- **Template:** a layer in `templates/` that a server can put under its zones, such as one with the SOA and NS records and `$ttl` that all zones share.
+- **Server:** a file in `servers/` that says which zones a DNS server has, with its overlays, its reverse zones and its templates.
 - **Generator:** the container image of zonegen. It renders the registry into zone files and validates them.
 
 ## Prerequisites
@@ -103,8 +104,6 @@ null removes, at any level, what the earlier layers have there:
 
 Layers are merged object by object, and anything that is not an object, such as a string or null, replaces what was there. A file ending in `.json` suits data from another tool, and one ending in `.libsonnet` suits data written by hand, since Jsonnet allows comments, trailing commas, and keys without quotes.
 
-The defaults must write names in the data as absolute names, such as `ns1.home.arpa.`, since they also lie under the reverse zones, whose origin is in `in-addr.arpa`.
-
 A Jsonnet layer can read with `$` the variables that the server gives the zone, which lets a zone differ by server while it stays in one place. A variable is a hidden field, so it is not a record:
 
 ```jsonnet
@@ -118,7 +117,7 @@ local edges = { edge1: '10.0.5.20' };
 }
 ```
 
-Each layer sees the variables of the server, and not the other layers, so a hidden field that a layer defines is for that layer alone. zonegen does not tell variables from names, and a name that a layer writes over a variable stays hidden, so keep them apart, such as by writing variables in uppercase. The defaults do not see the variables.
+Each layer sees the variables of the server, and not the other layers, so a hidden field that a layer defines is for that layer alone. zonegen does not tell variables from names, and a name that a layer writes over a variable stays hidden, so keep them apart, such as by writing variables in uppercase.
 
 ### Servers
 
@@ -136,16 +135,17 @@ local zones = zonegen.overlay(zonegen.bind(i.zones, { SERVER:: 'edge1' }), {
 });
 
 {
-  zones: zonegen.overlay(zones, zonegen.reverse(zones)),
+  zones: zonegen.underlay(zonegen.overlay(zones, zonegen.reverse(zones)), i.templates.defaults),
 }
 ```
 
 - `zonegen.bind(zones, ctx)` gives the hidden fields of `ctx` to the layers of `zones` as variables. Bind the zones before anything merges them, such as `zonegen.reverse`, if their layers read variables.
 - `zonegen.overlay(zones, over)` adds each layer of `over` on top of the zone of the same origin, and creates the zone if there is none. null removes the zone.
+- `zonegen.underlay(zones, layer)` puts `layer` under every zone of `zones`. A layer that lies under the reverse zones too must write names in the data as absolute names, such as `ns1.home.arpa.`, since the origin of a reverse zone is in `in-addr.arpa`.
 - `zonegen.reverse(zones)` returns an overlay with a reverse zone for each /24 of the A records in `zones`, with a PTR record for each address. To leave out a zone or a record, pass `zones` without it. An address with more than one name is an error, since a PTR record can name only one.
 - `zonegen.merge(layers)` merges a list of layers, as the generator does, which helps to see what a zone holds.
 
-`index.libsonnet` lists the files of the registry, and the generator writes it on each run. A zone in it is the list of its layers, which the generator merges only when it renders the zone, after the defaults.
+`index.libsonnet` lists the files of the registry, and the generator writes it on each run. A zone in it is the list of its layers, which the generator merges only when it renders the zone. Any other directory, such as `templates/`, is an object of its JSON and Jsonnet files by name without the extension, such as `i.templates.defaults` for `templates/defaults.json`.
 
 ### Generator
 
@@ -161,7 +161,7 @@ $ podman run --rm --userns=keep-id -v .:/mnt ghcr.io/t13a/zonegen print CODE='zo
 $ podman run --rm --userns=keep-id -v .:/mnt ghcr.io/t13a/zonegen print CODE='render(registry)["ns1/home.arpa.zone"]' | jq -r .
 ```
 
-Hidden fields are not printed, which is why `registry` shows only `servers`, but `CODE` can name one, such as `registry.zones` or `registry.defaults`. A file prints as a JSON string, which `jq -r .` turns back into the file, as in the last line.
+Hidden fields are not printed, which is why `registry` shows only `servers`, but `CODE` can name one, such as `registry.zones` or `registry.templates`. A file prints as a JSON string, which `jq -r .` turns back into the file, as in the last line.
 
 Each release publishes the image under its version, such as `0.1.0` for the tag `v0.1.0`, and as `latest`.
 

@@ -80,6 +80,12 @@ local bind(zones, ctx) = {
   for o in std.objectFields(zones)
 };
 
+// Puts a layer under every zone, such as the SOA and NS records that all zones share.
+local underlay(zones, layer) = {
+  [o]: if zones[o] == null then null else [layer] + zones[o]
+  for o in std.objectFields(zones)
+};
+
 // Adds each layer of an overlay on top of the zone of the same origin; null removes the zone.
 local overlay(zones, over) = zones + {
   [o]: if over[o] == null then null else get(zones, o, []) + [over[o]]
@@ -91,4 +97,5 @@ local overlay(zones, over) = zones + {
   merge: merge,
   overlay: overlay,
   reverse: reverse,
+  underlay: underlay,
 }

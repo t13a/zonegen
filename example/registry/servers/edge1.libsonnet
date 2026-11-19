@@ -8,5 +8,5 @@ local zones = zonegen.overlay(zonegen.bind(i.zones, { SERVER:: 'edge1' }), {
 });
 
 {
-  zones: zonegen.overlay(zones, zonegen.reverse(zones)),
+  zones: zonegen.underlay(zonegen.overlay(zones, zonegen.reverse(zones)), i.templates.defaults),
 }
