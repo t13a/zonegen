@@ -3,4 +3,4 @@ $ORIGIN 5.0.10.in-addr.arpa.
 $TTL 3600
 @	SOA	ns1.home.arpa. hostmaster.home.arpa. 1 3600 900 604800 300
 @	NS	ns1.home.arpa.
-20	PTR	app-edge1.home.arpa.
+20	PTR	app-edge.home.arpa.

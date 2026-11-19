@@ -67,6 +67,19 @@ local reverse(zones) =
     acc + { [zone]+: { [o[3]]: { ptr: byIp[ip][0] } } },
     std.objectFields(byIp), {});
 
+// Puts each layer of each zone on top of ctx, so that the layer can read the fields of ctx with $. A
+// layer keeps the fields that it wrote and that are visible after it, so a hidden field stays out of
+// the zone, and so does a field that it writes over a hidden one.
+local bindLayers(layers, ctx) = [
+  local c = ctx + l;
+  { [n]: c[n] for n in std.objectFields(c) if std.objectHasAll(l, n) }
+  for l in layers
+];
+local bind(zones, ctx) = {
+  [o]: if zones[o] == null then null else bindLayers(zones[o], ctx)
+  for o in std.objectFields(zones)
+};
+
 // Adds each layer of an overlay on top of the zone of the same origin; null removes the zone.
 local overlay(zones, over) = zones + {
   [o]: if over[o] == null then null else get(zones, o, []) + [over[o]]
@@ -74,6 +87,7 @@ local overlay(zones, over) = zones + {
 };
 
 {
+  bind: bind,
   merge: merge,
   overlay: overlay,
   reverse: reverse,

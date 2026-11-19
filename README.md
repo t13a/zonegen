@@ -105,6 +105,21 @@ Layers are merged object by object, and anything that is not an object, such as 
 
 The defaults must write names in the data as absolute names, such as `ns1.home.arpa.`, since they also lie under the reverse zones, whose origin is in `in-addr.arpa`.
 
+A Jsonnet layer can read with `$` the variables that the server gives the zone, which lets a zone differ by server while it stays in one place. A variable is a hidden field, so it is not a record:
+
+```jsonnet
+// zones/home.arpa/20-app.libsonnet
+local edges = { edge1: '10.0.5.20' };
+
+{
+  local edge = std.get(edges, $.SERVER),
+  'app-edge': if edge == null then null else { a: edge },
+  app: { cname: if edge == null then 'nas' else 'app-edge' },
+}
+```
+
+Each layer sees the variables of the server, and not the other layers, so a hidden field that a layer defines is for that layer alone. zonegen does not tell variables from names, and a name that a layer writes over a variable stays hidden, so keep them apart, such as by writing variables in uppercase. The defaults do not see the variables.
+
 ### Servers
 
 A server is a Jsonnet file that returns an object with `zones`, the zones of the server. It reads the zones of the registry from `index.libsonnet`, and changes them with the functions of `zonegen.libsonnet`:
@@ -114,8 +129,9 @@ A server is a Jsonnet file that returns an object with `zones`, the zones of the
 local i = import '../index.libsonnet';
 local zonegen = import 'zonegen.libsonnet';
 
-local zones = zonegen.overlay(i.zones, {
-  'home.arpa': { app: { cname: 'app-edge1' }, 'app-edge1': { a: '10.0.5.20' } },
+// The edge does not know the printer, and does not serve the lab.
+local zones = zonegen.overlay(zonegen.bind(i.zones, { SERVER:: 'edge1' }), {
+  'home.arpa': { printer: null },
   'lab.home.arpa': null,
 });
 
@@ -124,6 +140,7 @@ local zones = zonegen.overlay(i.zones, {
 }
 ```
 
+- `zonegen.bind(zones, ctx)` gives the hidden fields of `ctx` to the layers of `zones` as variables. Bind the zones before anything merges them, such as `zonegen.reverse`, if their layers read variables.
 - `zonegen.overlay(zones, over)` adds each layer of `over` on top of the zone of the same origin, and creates the zone if there is none. null removes the zone.
 - `zonegen.reverse(zones)` returns an overlay with a reverse zone for each /24 of the A records in `zones`, with a PTR record for each address. To leave out a zone or a record, pass `zones` without it. An address with more than one name is an error, since a PTR record can name only one.
 - `zonegen.merge(layers)` merges a list of layers, as the generator does, which helps to see what a zone holds.
@@ -138,8 +155,9 @@ The generator renders the registry in `registry/` of the directory mounted at `/
 
 ```console
 $ podman run --rm --userns=keep-id -v .:/mnt ghcr.io/t13a/zonegen print
-$ podman run --rm --userns=keep-id -v .:/mnt ghcr.io/t13a/zonegen print CODE='zonegen.merge(registry.zones["home.arpa"])'
-$ podman run --rm --userns=keep-id -v .:/mnt ghcr.io/t13a/zonegen print CODE='zonegen.reverse(registry.zones)'
+$ podman run --rm --userns=keep-id -v .:/mnt ghcr.io/t13a/zonegen print CODE='zonegen.merge(registry.zones["lab.home.arpa"])'
+$ podman run --rm --userns=keep-id -v .:/mnt ghcr.io/t13a/zonegen print CODE='zonegen.merge(zonegen.bind(registry.zones, { SERVER:: "edge1" })["home.arpa"])'
+$ podman run --rm --userns=keep-id -v .:/mnt ghcr.io/t13a/zonegen print CODE='zonegen.reverse(zonegen.bind(registry.zones, { SERVER:: "ns1" }))'
 $ podman run --rm --userns=keep-id -v .:/mnt ghcr.io/t13a/zonegen print CODE='render(registry)["ns1/home.arpa.zone"]' | jq -r .
 ```
 

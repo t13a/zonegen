@@ -3,7 +3,6 @@
   router: { a: '192.168.1.1' },
   nas: { a: '192.168.1.10' },
   www: { cname: 'nas' },
-  app: { cname: 'nas' },
 
   // XMPP and Matrix. RFC 2782 wants the target of an SRV record to have an address, not a CNAME.
   chat: { a: '192.168.1.20' },

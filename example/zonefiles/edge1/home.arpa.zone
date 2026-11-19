@@ -6,8 +6,8 @@ $TTL 3600
 _matrix-fed._tcp	SRV	10 0 8448 chat
 _xmpp-client._tcp	SRV	5 0 5222 chat
 _xmpp-server._tcp	SRV	5 0 5269 chat
-app	CNAME	app-edge1
-app-edge1	A	10.0.5.20
+app	CNAME	app-edge
+app-edge	A	10.0.5.20
 chat	A	192.168.1.20
 laptop	A	192.168.1.101
 nas	A	192.168.1.10

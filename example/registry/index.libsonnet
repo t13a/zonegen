@@ -6,7 +6,7 @@
     'ns1': import 'servers/ns1.libsonnet',
   },
   zones:: {
-    'home.arpa': [import 'zones/home.arpa/10-base.libsonnet', import 'zones/home.arpa/50-dhcp.json', ],
+    'home.arpa': [import 'zones/home.arpa/10-base.libsonnet', import 'zones/home.arpa/20-app.libsonnet', import 'zones/home.arpa/50-dhcp.json', ],
     'lab.home.arpa': [import 'zones/lab.home.arpa/10-base.libsonnet', ],
   },
 }

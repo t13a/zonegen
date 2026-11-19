@@ -1,13 +1,9 @@
 local i = import '../index.libsonnet';
 local zonegen = import 'zonegen.libsonnet';
 
-// The edge serves its own copy of app, does not know the printer, and does not serve the lab.
-local zones = zonegen.overlay(i.zones, {
-  'home.arpa': {
-    'app-edge1': { a: '10.0.5.20' },
-    app: { cname: 'app-edge1' },
-    printer: null,
-  },
+// The edge does not know the printer, and does not serve the lab.
+local zones = zonegen.overlay(zonegen.bind(i.zones, { SERVER:: 'edge1' }), {
+  'home.arpa': { printer: null },
   'lab.home.arpa': null,
 });
 
